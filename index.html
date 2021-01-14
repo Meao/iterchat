@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
   </head>
   <body>
-    <div class="container">
+    <div class="container mt-6">
       <div class="field">
       <div class="control is-small">
         <textarea id="messages" name="messages" class="textarea is-small" readonly placeholder="Small loading textarea">
@@ -22,6 +22,12 @@
           <label class="label">Name</label>
           <div class="control">
             <input id="username" name="username" class="input" type="text" placeholder="e.g Alex Smith">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">To</label>
+          <div class="control">
+            <input id="username_to" name="username_to" class="input" type="text" placeholder="e.g Alex Smith">
           </div>
         </div>
         <div class="field">
@@ -41,7 +47,7 @@
   <script src="//ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"> </script>
   
   <script>
-    var updater = {
+var updater = {
         errorSleepTime: 500,
         cursor: null,
 
@@ -51,7 +57,7 @@
             var args = {};
             if (updater.cursor)
               args.cursor = updater.cursor;
-            
+
             $.ajax({url: "/message/update", type: "POST", dataType: "text",
                     data: $.param(args), success: updater.onSuccess,
                     error: updater.onError});
@@ -59,7 +65,8 @@
 
         onSuccess: function(response) {
             try {
-                updater.newMessages(eval("(" + response + ")"));
+              // updater.newMessages(eval("(" + response + ")"));
+              updater.newMessages(JSON.parse(response));
             } catch (e) {
                 updater.onError();
                 return;
@@ -75,41 +82,41 @@
         },
 
         newMessages: function(response) {
-          
-          // парсинг ответа и итерация по всем сообщением, 
+          // парсинг ответа и итерация по всем сообщением,
           // которые были распарсены в цикле for
 
           // можно слить воедино со следующим методом showMessage
-
-            if (!response.messages)
-             return;
-            var messages = response.messages;
-            updater.cursor = messages[messages.length - 1].id;
-            console.log(messages.length, "new messages, cursor:", updater.cursor);
-            for (var i = 0; i < messages.length; i++) {
-                updater.showMessage(messages[i]);
-            }
+          if (!response.messages)
+            return;
+          var messages = response.messages;
+          updater.cursor = messages[messages.length - 1].id;
+          console.log(messages.length, "new messages, cursor:", updater.cursor);
+          // for (var i = 0; i < messages.length; i++) {updater.showMessage(messages[i]);}
+          for (var i = 0; i < messages.length; i++) {
+            $('#messages').append(messages[i].nickname + '(' + messages[i].user_id + '): ' + messages[i].message+"\n");
+          }
         },
 
-        showMessage: function(message) {
-          
-          // добавление сообщения в textarea
-          
-            console.log("appendMessage: " + message.message);
-            $('#messages').append(message.message+"\n");
-            $('#messages').scrollTop($('#messages')[0].scrollHeight);
-        }
+        // showMessage: function(message) {
+
+        //   // добавление сообщения в textarea
+
+        //     console.log("appendMessage: " + message.message);
+        //     $('#messages').append(message.message+"\n");
+        //     $('#messages').scrollTop($('#messages')[0].scrollHeight);
+        // }
     };
 
     $(function() {
         let webSocket = new WebSocket('ws://localhost:8888/websocket');
 
         webSocket.onopen = event => {
-          console.log('webSocket is opened');
+          console.log('webSocket is opened' + ' ' + webSocket);
         };
 
         webSocket.onmessage = event => {
-            var obj = eval("(" + event.data + ")");
+            var obj = JSON.parse(event.data);
+            // var obj = eval("(" + event.data + ")");
             console.log('onmessage, ' + obj.message);
             $('#msgtxt').val('');
             // document.querySelector('#msgtxt').val('');
@@ -120,17 +127,22 @@
         webSocket.onclose = event => {
             console.log('onclose');
         };
-        
+
         $('#newmessageform').submit(function(event) {
           const nickname = document.querySelector('#username').value;
+          // const data = nickname + ": " + msgtxt;
           const msgtxt = document.querySelector('#msgtxt').value;
-          const data = nickname + ": " + msgtxt;
-          webSocket.send(data);
+          const user_id_to = document.querySelector('#username_to').value;
+          document.querySelector('#msgtxt').value = '';
+          const data = {
+            'nickname': nickname,
+            'msgtxt': msgtxt,
+            'to_user_id': user_id_to
+          };
+          webSocket.send(JSON.stringify(data));
           event.preventDefault();
         });
 
         updater.poll();
-    });
-
-  </script>
+    });</script>
 </html>
